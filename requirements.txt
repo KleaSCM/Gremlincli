@@ -1,0 +1,10 @@
+# System Dependencies
+sysstat  # Required for iostat, mpstat, sar
+htop     # Required for interactive process viewer
+nmap     # Required for network scanning
+curl     # Required for URL transfers
+dig      # Required for DNS lookups
+fail2ban # Required for IP banning
+clamav   # Required for virus scanning
+gpg      # Required for encryption/decryption
+openssl  # Required for encryption/decryption 

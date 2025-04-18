@@ -289,32 +289,318 @@ fn init_command_map() -> HashMap<CommandName, CommandFn> {
     // Process Management
     m.insert(CommandName::Ps, Arc::new(Mutex::new(Box::new(|_: &str| command_logic::ps()) as Box<dyn Fn(&str) -> () + Send + Sync>)));
     m.insert(CommandName::Htop, Arc::new(Mutex::new(Box::new(|_: &str| command_logic::htop()) as Box<dyn Fn(&str) -> () + Send + Sync>)));
-    m.insert(CommandName::KillGraceful, Arc::new(Mutex::new(Box::new(|arg: &str| command_logic::kill_graceful(arg)) as Box<dyn Fn(&str) -> () + Send + Sync>)));
-    m.insert(CommandName::KillForce, Arc::new(Mutex::new(Box::new(|arg: &str| command_logic::kill_force(arg)) as Box<dyn Fn(&str) -> () + Send + Sync>)));
-    m.insert(CommandName::Pkill, Arc::new(Mutex::new(Box::new(|arg: &str| command_logic::pkill(arg)) as Box<dyn Fn(&str) -> () + Send + Sync>)));
-    m.insert(CommandName::Pgrep, Arc::new(Mutex::new(Box::new(|arg: &str| command_logic::pgrep(arg)) as Box<dyn Fn(&str) -> () + Send + Sync>)));
+    m.insert(CommandName::KillGraceful, Arc::new(Mutex::new(Box::new(|arg: &str| {
+        // Try to find process by name if not a PID
+        if arg.chars().all(|c| c.is_digit(10)) {
+            command_logic::kill_graceful(arg);
+        } else {
+            // Search for process by name
+            let output = std::process::Command::new("pgrep")
+                .arg("-l")
+                .arg(arg)
+                .output();
+            
+            match output {
+                Ok(out) => {
+                    let processes = String::from_utf8_lossy(&out.stdout);
+                    if processes.is_empty() {
+                        println!("{}", format!("No process found matching '{}'", arg).bright_red());
+                    } else {
+                        println!("{}", "Found processes:".bright_cyan());
+                        println!("{}", processes.bright_green());
+                        println!("{}", "Killing all matching processes...".bright_yellow());
+                        command_logic::kill_graceful(arg);
+                    }
+                },
+                Err(e) => println!("{} {}", "Search failed:".bright_red(), e),
+            }
+        }
+    }) as Box<dyn Fn(&str) -> () + Send + Sync>)));
+    m.insert(CommandName::KillForce, Arc::new(Mutex::new(Box::new(|arg: &str| {
+        // Try to find process by name if not a PID
+        if arg.chars().all(|c| c.is_digit(10)) {
+            command_logic::kill_force(arg);
+        } else {
+            // Search for process by name
+            let output = std::process::Command::new("pgrep")
+                .arg("-l")
+                .arg(arg)
+                .output();
+            
+            match output {
+                Ok(out) => {
+                    let processes = String::from_utf8_lossy(&out.stdout);
+                    if processes.is_empty() {
+                        println!("{}", format!("No process found matching '{}'", arg).bright_red());
+                    } else {
+                        println!("{}", "Found processes:".bright_cyan());
+                        println!("{}", processes.bright_green());
+                        println!("{}", "Forcefully killing all matching processes...".bright_yellow());
+                        command_logic::kill_force(arg);
+                    }
+                },
+                Err(e) => println!("{} {}", "Search failed:".bright_red(), e),
+            }
+        }
+    }) as Box<dyn Fn(&str) -> () + Send + Sync>)));
+    m.insert(CommandName::Pkill, Arc::new(Mutex::new(Box::new(|arg: &str| {
+        // Search for process by name first
+        let output = std::process::Command::new("pgrep")
+            .arg("-l")
+            .arg(arg)
+            .output();
+        
+        match output {
+            Ok(out) => {
+                let processes = String::from_utf8_lossy(&out.stdout);
+                if processes.is_empty() {
+                    println!("{}", format!("No process found matching '{}'", arg).bright_red());
+                } else {
+                    println!("{}", "Found processes:".bright_cyan());
+                    println!("{}", processes.bright_green());
+                    println!("{}", "Killing all matching processes...".bright_yellow());
+                    command_logic::pkill(arg);
+                }
+            },
+            Err(e) => println!("{} {}", "Search failed:".bright_red(), e),
+        }
+    }) as Box<dyn Fn(&str) -> () + Send + Sync>)));
+    m.insert(CommandName::Pgrep, Arc::new(Mutex::new(Box::new(|arg: &str| {
+        // Search for process by name
+        let output = std::process::Command::new("pgrep")
+            .arg("-l")
+            .arg(arg)
+            .output();
+        
+        match output {
+            Ok(out) => {
+                let processes = String::from_utf8_lossy(&out.stdout);
+                if processes.is_empty() {
+                    println!("{}", format!("No process found matching '{}'", arg).bright_red());
+                } else {
+                    println!("{}", "Found processes:".bright_cyan());
+                    println!("{}", processes.bright_green());
+                }
+            },
+            Err(e) => println!("{} {}", "Search failed:".bright_red(), e),
+        }
+    }) as Box<dyn Fn(&str) -> () + Send + Sync>)));
 
     // Resource Monitoring
     m.insert(CommandName::Free, Arc::new(Mutex::new(Box::new(|_: &str| command_logic::free()) as Box<dyn Fn(&str) -> () + Send + Sync>)));
-    m.insert(CommandName::Vmstat, Arc::new(Mutex::new(Box::new(|_: &str| command_logic::vmstat()) as Box<dyn Fn(&str) -> () + Send + Sync>)));
-    m.insert(CommandName::Iostat, Arc::new(Mutex::new(Box::new(|_: &str| command_logic::iostat()) as Box<dyn Fn(&str) -> () + Send + Sync>)));
-    m.insert(CommandName::Mpstat, Arc::new(Mutex::new(Box::new(|_: &str| command_logic::mpstat()) as Box<dyn Fn(&str) -> () + Send + Sync>)));
-    m.insert(CommandName::Sar, Arc::new(Mutex::new(Box::new(|_: &str| command_logic::sar()) as Box<dyn Fn(&str) -> () + Send + Sync>)));
+    m.insert(CommandName::Vmstat, Arc::new(Mutex::new(Box::new(|arg: &str| {
+        let parts: Vec<&str> = arg.split_whitespace().collect();
+        let interval = parts.get(0).unwrap_or(&"1");
+        let count = parts.get(1).unwrap_or(&"5");
+        command_logic::vmstat(interval, count);
+    }) as Box<dyn Fn(&str) -> () + Send + Sync>)));
+    m.insert(CommandName::Iostat, Arc::new(Mutex::new(Box::new(|arg: &str| {
+        let parts: Vec<&str> = arg.split_whitespace().collect();
+        let interval = parts.get(0).unwrap_or(&"1");
+        let count = parts.get(1).unwrap_or(&"5");
+        command_logic::iostat(interval, count);
+    }) as Box<dyn Fn(&str) -> () + Send + Sync>)));
+    m.insert(CommandName::Mpstat, Arc::new(Mutex::new(Box::new(|arg: &str| {
+        let parts: Vec<&str> = arg.split_whitespace().collect();
+        let interval = parts.get(0).unwrap_or(&"1");
+        let count = parts.get(1).unwrap_or(&"5");
+        command_logic::mpstat(interval, count);
+    }) as Box<dyn Fn(&str) -> () + Send + Sync>)));
+    m.insert(CommandName::Sar, Arc::new(Mutex::new(Box::new(|arg: &str| {
+        let parts: Vec<&str> = arg.split_whitespace().collect();
+        let interval = parts.get(0).unwrap_or(&"1");
+        let count = parts.get(1).unwrap_or(&"5");
+        command_logic::sar(interval, count);
+    }) as Box<dyn Fn(&str) -> () + Send + Sync>)));
 
     // Disk and Storage
     m.insert(CommandName::Df, Arc::new(Mutex::new(Box::new(|_: &str| command_logic::df()) as Box<dyn Fn(&str) -> () + Send + Sync>)));
-    m.insert(CommandName::Du, Arc::new(Mutex::new(Box::new(|arg: &str| command_logic::du(arg)) as Box<dyn Fn(&str) -> () + Send + Sync>)));
-    m.insert(CommandName::Ncdu, Arc::new(Mutex::new(Box::new(|arg: &str| command_logic::ncdu(arg)) as Box<dyn Fn(&str) -> () + Send + Sync>)));
+    m.insert(CommandName::Du, Arc::new(Mutex::new(Box::new(|arg: &str| {
+        // If no path provided, use current directory
+        let path = if arg.is_empty() { "." } else { arg };
+        command_logic::du(path);
+    }) as Box<dyn Fn(&str) -> () + Send + Sync>)));
+    m.insert(CommandName::Ncdu, Arc::new(Mutex::new(Box::new(|arg: &str| {
+        // If no path provided, use current directory
+        let path = if arg.is_empty() { "." } else { arg };
+        command_logic::ncdu(path);
+    }) as Box<dyn Fn(&str) -> () + Send + Sync>)));
     m.insert(CommandName::Lsblk, Arc::new(Mutex::new(Box::new(|_: &str| command_logic::lsblk()) as Box<dyn Fn(&str) -> () + Send + Sync>)));
     m.insert(CommandName::Mount, Arc::new(Mutex::new(Box::new(|_: &str| command_logic::mount()) as Box<dyn Fn(&str) -> () + Send + Sync>)));
-    m.insert(CommandName::Umount, Arc::new(Mutex::new(Box::new(|arg: &str| command_logic::umount(arg)) as Box<dyn Fn(&str) -> () + Send + Sync>)));
+    m.insert(CommandName::Umount, Arc::new(Mutex::new(Box::new(|arg: &str| {
+        // Try to find mount point if device name is provided
+        if !arg.starts_with("/") {
+            let output = std::process::Command::new("findmnt")
+                .arg("-n")
+                .arg("-o")
+                .arg("TARGET")
+                .arg(arg)
+                .output();
+            
+            match output {
+                Ok(out) => {
+                    let mountpoint = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                    if !mountpoint.is_empty() {
+                        println!("{}", format!("Found mount point: {}", mountpoint).bright_cyan());
+                        command_logic::umount(&mountpoint);
+                    } else {
+                        command_logic::umount(arg);
+                    }
+                },
+                Err(_) => command_logic::umount(arg),
+            }
+        } else {
+            command_logic::umount(arg);
+        }
+    }) as Box<dyn Fn(&str) -> () + Send + Sync>)));
 
     // Log Diving
-    m.insert(CommandName::JournalctlSystem, Arc::new(Mutex::new(Box::new(|_: &str| command_logic::journalctl_system()) as Box<dyn Fn(&str) -> () + Send + Sync>)));
-    m.insert(CommandName::JournalctlService, Arc::new(Mutex::new(Box::new(|arg: &str| command_logic::journalctl_service(arg)) as Box<dyn Fn(&str) -> () + Send + Sync>)));
-    m.insert(CommandName::Dmesg, Arc::new(Mutex::new(Box::new(|_: &str| command_logic::dmesg()) as Box<dyn Fn(&str) -> () + Send + Sync>)));
-    m.insert(CommandName::TailSyslog, Arc::new(Mutex::new(Box::new(|_: &str| command_logic::tail_syslog()) as Box<dyn Fn(&str) -> () + Send + Sync>)));
-    m.insert(CommandName::AuthLog, Arc::new(Mutex::new(Box::new(|_: &str| command_logic::less_auth_log()) as Box<dyn Fn(&str) -> () + Send + Sync>)));
+    m.insert(CommandName::JournalctlSystem, Arc::new(Mutex::new(Box::new(|_: &str| {
+        println!("{}", "Showing system journal logs...".bright_cyan());
+        let output = std::process::Command::new("journalctl")
+            .arg("-xe")  // Show errors and warnings
+            .arg("--no-pager")  // Don't use pager
+            .arg("--since")  // Show last hour
+            .arg("1 hour ago")
+            .output();
+        
+        match output {
+            Ok(out) => {
+                let logs = String::from_utf8_lossy(&out.stdout);
+                if logs.is_empty() {
+                    println!("{}", "No recent system logs found.".bright_red());
+                } else {
+                    // Color code log levels
+                    for line in logs.lines() {
+                        let color = if line.contains("error") || line.contains("Error") { "red" }
+                                  else if line.contains("warning") || line.contains("Warning") { "yellow" }
+                                  else if line.contains("info") || line.contains("Info") { "green" }
+                                  else { "white" };
+                        println!("{}", line.color(color));
+                    }
+                }
+            },
+            Err(e) => println!("{} {}", "Failed to read system logs:".bright_red(), e),
+        }
+    }) as Box<dyn Fn(&str) -> () + Send + Sync>)));
+    m.insert(CommandName::JournalctlService, Arc::new(Mutex::new(Box::new(|_: &str| {
+        println!("{}", "Showing recent service logs...".bright_cyan());
+        let output = std::process::Command::new("systemctl")
+            .arg("list-units")
+            .arg("--type=service")
+            .arg("--state=running")
+            .output();
+        
+        match output {
+            Ok(out) => {
+                let services = String::from_utf8_lossy(&out.stdout);
+                if services.is_empty() {
+                    println!("{}", "No running services found.".bright_red());
+                } else {
+                    println!("{}", "Running Services:".bright_cyan());
+                    for line in services.lines().skip(1) {  // Skip header
+                        if let Some(service) = line.split_whitespace().next() {
+                            println!("{}", format!("• {}", service).bright_green());
+                            // Show last 5 log entries for each service
+                            let logs = std::process::Command::new("journalctl")
+                                .arg("-u")
+                                .arg(service)
+                                .arg("-n")
+                                .arg("5")
+                                .arg("--no-pager")
+                                .output();
+                            
+                            match logs {
+                                Ok(log_out) => {
+                                    let service_logs = String::from_utf8_lossy(&log_out.stdout);
+                                    for log_line in service_logs.lines() {
+                                        println!("  {}", log_line.bright_blue());
+                                    }
+                                },
+                                Err(_) => continue,
+                            }
+                        }
+                    }
+                }
+            },
+            Err(e) => println!("{} {}", "Failed to list services:".bright_red(), e),
+        }
+    }) as Box<dyn Fn(&str) -> () + Send + Sync>)));
+    m.insert(CommandName::Dmesg, Arc::new(Mutex::new(Box::new(|_: &str| {
+        println!("{}", "Showing recent kernel messages...".bright_cyan());
+        let output = std::process::Command::new("dmesg")
+            .arg("-T")  // Human readable timestamps
+            .arg("--level=err,warn")  // Show errors and warnings
+            .output();
+        
+        match output {
+            Ok(out) => {
+                let messages = String::from_utf8_lossy(&out.stdout);
+                if messages.is_empty() {
+                    println!("{}", "No recent kernel messages found.".bright_red());
+                } else {
+                    for line in messages.lines() {
+                        let color = if line.contains("error") || line.contains("Error") { "red" }
+                                  else if line.contains("warning") || line.contains("Warning") { "yellow" }
+                                  else { "white" };
+                        println!("{}", line.color(color));
+                    }
+                }
+            },
+            Err(e) => println!("{} {}", "Failed to read kernel messages:".bright_red(), e),
+        }
+    }) as Box<dyn Fn(&str) -> () + Send + Sync>)));
+    m.insert(CommandName::TailSyslog, Arc::new(Mutex::new(Box::new(|_: &str| {
+        println!("{}", "Showing recent system log entries...".bright_cyan());
+        let output = std::process::Command::new("tail")
+            .arg("-n")
+            .arg("50")  // Show last 50 lines
+            .arg("/var/log/syslog")
+            .output();
+        
+        match output {
+            Ok(out) => {
+                let logs = String::from_utf8_lossy(&out.stdout);
+                if logs.is_empty() {
+                    println!("{}", "No system log entries found.".bright_red());
+                } else {
+                    for line in logs.lines() {
+                        let color = if line.contains("error") || line.contains("Error") { "red" }
+                                  else if line.contains("warning") || line.contains("Warning") { "yellow" }
+                                  else if line.contains("info") || line.contains("Info") { "green" }
+                                  else { "white" };
+                        println!("{}", line.color(color));
+                    }
+                }
+            },
+            Err(e) => println!("{} {}", "Failed to read system log:".bright_red(), e),
+        }
+    }) as Box<dyn Fn(&str) -> () + Send + Sync>)));
+    m.insert(CommandName::AuthLog, Arc::new(Mutex::new(Box::new(|_: &str| {
+        println!("{}", "Showing recent authentication logs...".bright_cyan());
+        let output = std::process::Command::new("tail")
+            .arg("-n")
+            .arg("50")  // Show last 50 lines
+            .arg("/var/log/auth.log")
+            .output();
+        
+        match output {
+            Ok(out) => {
+                let logs = String::from_utf8_lossy(&out.stdout);
+                if logs.is_empty() {
+                    println!("{}", "No authentication logs found.".bright_red());
+                } else {
+                    for line in logs.lines() {
+                        let color = if line.contains("failed") || line.contains("Failed") { "red" }
+                                  else if line.contains("accepted") || line.contains("Accepted") { "green" }
+                                  else { "white" };
+                        println!("{}", line.color(color));
+                    }
+                }
+            },
+            Err(e) => println!("{} {}", "Failed to read authentication log:".bright_red(), e),
+        }
+    }) as Box<dyn Fn(&str) -> () + Send + Sync>)));
 
     // Networking
     m.insert(CommandName::Ip, Arc::new(Mutex::new(Box::new(|_: &str| command_logic::ip_a()) as Box<dyn Fn(&str) -> () + Send + Sync>)));

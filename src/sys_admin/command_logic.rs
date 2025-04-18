@@ -8,13 +8,29 @@ pub fn ip_a() {
         .output();
 
     match output {
-        Ok(out) => println!("{}", String::from_utf8_lossy(&out.stdout).bright_green()),
+        Ok(out) => {
+            let interfaces = String::from_utf8_lossy(&out.stdout);
+            if interfaces.is_empty() {
+                println!("{}", "No network interfaces found.".bright_red());
+            } else {
+                println!("{}", "Network Interfaces:".bright_cyan());
+                println!("{}", interfaces.bright_green());
+            }
+        },
         Err(e) => println!("{} {}", "IP command failed:".bright_red(), e),
     }
 }
 
 pub fn ping(target: &str) {
-    println!("{}", format!("Pinging {}...", target).bright_cyan());
+    // Try to determine if it's an IP or hostname
+    let is_ip = target.split('.').count() == 4 && 
+                target.split('.').all(|x| x.parse::<u8>().is_ok());
+    
+    println!("{}", format!("Pinging {} ({})...", 
+        target, 
+        if is_ip { "IP address" } else { "hostname" }
+    ).bright_cyan());
+    
     let output = Command::new("ping")
         .arg("-c")
         .arg("4")
@@ -22,7 +38,16 @@ pub fn ping(target: &str) {
         .output();
 
     match output {
-        Ok(out) => println!("{}", String::from_utf8_lossy(&out.stdout).bright_green()),
+        Ok(out) => {
+            let result = String::from_utf8_lossy(&out.stdout);
+            if result.contains("100% packet loss") {
+                println!("{}", "❌ Target is unreachable".bright_red());
+            } else if result.contains("0% packet loss") {
+                println!("{}", "✅ Target is reachable".bright_green());
+            } else {
+                println!("{}", result.bright_green());
+            }
+        },
         Err(e) => println!("{} {}", "Ping failed:".bright_red(), e),
     }
 }
@@ -34,44 +59,91 @@ pub fn traceroute(target: &str) {
         .output();
 
     match output {
-        Ok(out) => println!("{}", String::from_utf8_lossy(&out.stdout).bright_green()),
+        Ok(out) => {
+            let trace = String::from_utf8_lossy(&out.stdout);
+            if trace.is_empty() {
+                println!("{}", "No route found to target.".bright_red());
+            } else {
+                println!("{}", "Route:".bright_cyan());
+                println!("{}", trace.bright_green());
+            }
+        },
         Err(e) => println!("{} {}", "Traceroute failed:".bright_red(), e),
     }
 }
 
 pub fn netstat() {
-    println!("{}", "Checking open ports...".bright_cyan());
+    println!("{}", "Checking network connections...".bright_cyan());
     let output = Command::new("netstat")
         .arg("-tuln")
         .output();
 
     match output {
-        Ok(out) => println!("{}", String::from_utf8_lossy(&out.stdout).bright_green()),
+        Ok(out) => {
+            let connections = String::from_utf8_lossy(&out.stdout);
+            if connections.is_empty() {
+                println!("{}", "No active network connections found.".bright_red());
+            } else {
+                println!("{}", "Active Connections:".bright_cyan());
+                println!("{}", connections.bright_green());
+            }
+        },
         Err(e) => println!("{} {}", "Netstat failed:".bright_red(), e),
     }
 }
 
 pub fn nmap(target: &str) {
-    println!("{}", format!("Scanning {} for open services...", target).bright_cyan());
+    // Try to determine if it's an IP or hostname
+    let is_ip = target.split('.').count() == 4 && 
+                target.split('.').all(|x| x.parse::<u8>().is_ok());
+    
+    println!("{}", format!("Scanning {} ({}) for open ports...", 
+        target, 
+        if is_ip { "IP address" } else { "hostname" }
+    ).bright_cyan());
+    
     let output = Command::new("nmap")
+        .arg("-sV")
         .arg(target)
         .output();
 
     match output {
-        Ok(out) => println!("{}", String::from_utf8_lossy(&out.stdout).bright_green()),
+        Ok(out) => {
+            let scan = String::from_utf8_lossy(&out.stdout);
+            if scan.is_empty() {
+                println!("{}", "No open ports found.".bright_red());
+            } else {
+                println!("{}", "Scan Results:".bright_cyan());
+                println!("{}", scan.bright_green());
+            }
+        },
         Err(e) => println!("{} {}", "Nmap failed:".bright_red(), e),
     }
 }
 
 pub fn curl(url: &str) {
-    println!("{}", format!("Testing HTTP connection to {}...", url).bright_cyan());
+    // Validate URL format
+    if !url.starts_with("http://") && !url.starts_with("https://") {
+        println!("{}", "Invalid URL format. Please include http:// or https://".bright_red());
+        return;
+    }
+
+    println!("{}", format!("Testing connection to {}...", url).bright_cyan());
     let output = Command::new("curl")
         .arg("-I")
         .arg(url)
         .output();
 
     match output {
-        Ok(out) => println!("{}", String::from_utf8_lossy(&out.stdout).bright_green()),
+        Ok(out) => {
+            let headers = String::from_utf8_lossy(&out.stdout);
+            if headers.is_empty() {
+                println!("{}", "No response received from server.".bright_red());
+            } else {
+                println!("{}", "Server Response:".bright_cyan());
+                println!("{}", headers.bright_green());
+            }
+        },
         Err(e) => println!("{} {}", "Curl failed:".bright_red(), e),
     }
 }
@@ -79,11 +151,20 @@ pub fn curl(url: &str) {
 pub fn dig(domain: &str) {
     println!("{}", format!("Checking DNS records for {}...", domain).bright_cyan());
     let output = Command::new("dig")
+        .arg("+short")
         .arg(domain)
         .output();
 
     match output {
-        Ok(out) => println!("{}", String::from_utf8_lossy(&out.stdout).bright_green()),
+        Ok(out) => {
+            let records = String::from_utf8_lossy(&out.stdout);
+            if records.is_empty() {
+                println!("{}", "No DNS records found.".bright_red());
+            } else {
+                println!("{}", "DNS Records:".bright_cyan());
+                println!("{}", records.bright_green());
+            }
+        },
         Err(e) => println!("{} {}", "Dig failed:".bright_red(), e),
     }
 }
@@ -125,40 +206,147 @@ pub fn htop() {
     }
 }
 
-pub fn kill_graceful(pid: &str) {
-    println!("{}", format!("Attempting to kill {} gracefully...", pid).bright_cyan());
-    let output = Command::new("kill")
-        .arg(pid)
-        .output();
+pub fn kill_graceful(pid_or_name: &str) {
+    // Try to parse as PID first
+    if let Ok(pid) = pid_or_name.parse::<i32>() {
+        println!("{}", format!("Attempting to kill PID {} gracefully...", pid).bright_cyan());
+        let output = Command::new("kill")
+            .arg(pid.to_string())
+            .output();
 
-    match output {
-        Ok(out) => println!("{}", String::from_utf8_lossy(&out.stdout).bright_green()),
-        Err(e) => println!("{} {}", "Kill failed:".bright_red(), e),
+        match output {
+            Ok(out) => println!("{}", String::from_utf8_lossy(&out.stdout).bright_green()),
+            Err(e) => println!("{} {}", "Kill failed:".bright_red(), e),
+        }
+    } else {
+        // If not a PID, try to find the process by name
+        println!("{}", format!("Searching for processes named {}...", pid_or_name).bright_cyan());
+        let pgrep_output = Command::new("pgrep")
+            .arg("-l")
+            .arg(pid_or_name)
+            .output();
+
+        match pgrep_output {
+            Ok(out) => {
+                let processes = String::from_utf8_lossy(&out.stdout);
+                if processes.is_empty() {
+                    println!("{}", format!("No processes found matching '{}'", pid_or_name).bright_red());
+                    return;
+                }
+                
+                println!("{}", "Found processes:".bright_cyan());
+                println!("{}", processes.bright_green());
+                
+                // Ask if user wants to kill all matching processes
+                println!("{}", "Kill all matching processes? (y/n): ".bright_yellow());
+                let mut input = String::new();
+                std::io::stdin().read_line(&mut input).unwrap();
+                
+                if input.trim().to_lowercase() == "y" {
+                    let pkill_output = Command::new("pkill")
+                        .arg(pid_or_name)
+                        .output();
+                    
+                    match pkill_output {
+                        Ok(out) => println!("{}", String::from_utf8_lossy(&out.stdout).bright_green()),
+                        Err(e) => println!("{} {}", "Pkill failed:".bright_red(), e),
+                    }
+                }
+            },
+            Err(e) => println!("{} {}", "Pgrep failed:".bright_red(), e),
+        }
     }
 }
 
-pub fn kill_force(pid: &str) {
-    println!("{}", format!("Brutally terminating {}...", pid).bright_cyan());
-    let output = Command::new("kill")
-        .arg("-9")
-        .arg(pid)
-        .output();
+pub fn kill_force(pid_or_name: &str) {
+    // Try to parse as PID first
+    if let Ok(pid) = pid_or_name.parse::<i32>() {
+        println!("{}", format!("Brutally terminating PID {}...", pid).bright_cyan());
+        let output = Command::new("kill")
+            .arg("-9")
+            .arg(pid.to_string())
+            .output();
 
-    match output {
-        Ok(out) => println!("{}", String::from_utf8_lossy(&out.stdout).bright_green()),
-        Err(e) => println!("{} {}", "Kill failed:".bright_red(), e),
+        match output {
+            Ok(out) => println!("{}", String::from_utf8_lossy(&out.stdout).bright_green()),
+            Err(e) => println!("{} {}", "Kill failed:".bright_red(), e),
+        }
+    } else {
+        // If not a PID, try to find the process by name
+        println!("{}", format!("Searching for processes named {}...", pid_or_name).bright_cyan());
+        let pgrep_output = Command::new("pgrep")
+            .arg("-l")
+            .arg(pid_or_name)
+            .output();
+
+        match pgrep_output {
+            Ok(out) => {
+                let processes = String::from_utf8_lossy(&out.stdout);
+                if processes.is_empty() {
+                    println!("{}", format!("No processes found matching '{}'", pid_or_name).bright_red());
+                    return;
+                }
+                
+                println!("{}", "Found processes:".bright_cyan());
+                println!("{}", processes.bright_green());
+                
+                // Ask if user wants to kill all matching processes
+                println!("{}", "Kill all matching processes? (y/n): ".bright_yellow());
+                let mut input = String::new();
+                std::io::stdin().read_line(&mut input).unwrap();
+                
+                if input.trim().to_lowercase() == "y" {
+                    let pkill_output = Command::new("pkill")
+                        .arg("-9")
+                        .arg(pid_or_name)
+                        .output();
+                    
+                    match pkill_output {
+                        Ok(out) => println!("{}", String::from_utf8_lossy(&out.stdout).bright_green()),
+                        Err(e) => println!("{} {}", "Pkill failed:".bright_red(), e),
+                    }
+                }
+            },
+            Err(e) => println!("{} {}", "Pgrep failed:".bright_red(), e),
+        }
     }
 }
 
 pub fn pkill(name: &str) {
-    println!("{}", format!("Attempting to kill processes named {}...", name).bright_cyan());
-    let output = Command::new("pkill")
+    println!("{}", format!("Searching for processes named {}...", name).bright_cyan());
+    let pgrep_output = Command::new("pgrep")
+        .arg("-l")
         .arg(name)
         .output();
 
-    match output {
-        Ok(out) => println!("{}", String::from_utf8_lossy(&out.stdout).bright_green()),
-        Err(e) => println!("{} {}", "Pkill failed:".bright_red(), e),
+    match pgrep_output {
+        Ok(out) => {
+            let processes = String::from_utf8_lossy(&out.stdout);
+            if processes.is_empty() {
+                println!("{}", format!("No processes found matching '{}'", name).bright_red());
+                return;
+            }
+            
+            println!("{}", "Found processes:".bright_cyan());
+            println!("{}", processes.bright_green());
+            
+            // Ask if user wants to kill all matching processes
+            println!("{}", "Kill all matching processes? (y/n): ".bright_yellow());
+            let mut input = String::new();
+            std::io::stdin().read_line(&mut input).unwrap();
+            
+            if input.trim().to_lowercase() == "y" {
+                let pkill_output = Command::new("pkill")
+                    .arg(name)
+                    .output();
+                
+                match pkill_output {
+                    Ok(out) => println!("{}", String::from_utf8_lossy(&out.stdout).bright_green()),
+                    Err(e) => println!("{} {}", "Pkill failed:".bright_red(), e),
+                }
+            }
+        },
+        Err(e) => println!("{} {}", "Pgrep failed:".bright_red(), e),
     }
 }
 
@@ -170,7 +358,15 @@ pub fn pgrep(name: &str) {
         .output();
 
     match output {
-        Ok(out) => println!("{}", String::from_utf8_lossy(&out.stdout).bright_green()),
+        Ok(out) => {
+            let processes = String::from_utf8_lossy(&out.stdout);
+            if processes.is_empty() {
+                println!("{}", format!("No processes found matching '{}'", name).bright_red());
+            } else {
+                println!("{}", "Found processes:".bright_cyan());
+                println!("{}", processes.bright_green());
+            }
+        },
         Err(e) => println!("{} {}", "Pgrep failed:".bright_red(), e),
     }
 }
@@ -182,53 +378,229 @@ pub fn free() {
         .output();
 
     match output {
-        Ok(out) => println!("{}", String::from_utf8_lossy(&out.stdout).bright_green()),
+        Ok(out) => {
+            let memory = String::from_utf8_lossy(&out.stdout);
+            if memory.is_empty() {
+                println!("{}", "No memory information available.".bright_red());
+            } else {
+                println!("{}", "Memory Usage:".bright_cyan());
+                // Parse and format the output
+                let lines: Vec<&str> = memory.lines().collect();
+                if lines.len() >= 2 {
+                    let headers = lines[0];
+                    let mem_info = lines[1];
+                    let swap_info = if lines.len() >= 3 { lines[2] } else { "" };
+                    
+                    println!("{}", format!("{}\n{}", headers, mem_info).bright_green());
+                    if !swap_info.is_empty() {
+                        println!("{}", swap_info.bright_green());
+                    }
+                } else {
+                    println!("{}", memory.bright_green());
+                }
+            }
+        },
         Err(e) => println!("{} {}", "Free failed:".bright_red(), e),
     }
 }
 
-pub fn vmstat() {
-    println!("{}", "Checking system stats...".bright_cyan());
+pub fn vmstat(interval: &str, count: &str) {
+    // Set defaults if not provided
+    let interval = if interval.is_empty() { "1" } else { interval };
+    let count = if count.is_empty() { "5" } else { count };
+
+    println!("{}", format!("Monitoring system stats (interval: {}s, count: {})...", interval, count).bright_cyan());
     let output = Command::new("vmstat")
+        .arg(interval)
+        .arg(count)
         .output();
 
     match output {
-        Ok(out) => println!("{}", String::from_utf8_lossy(&out.stdout).bright_green()),
+        Ok(out) => {
+            let stats = String::from_utf8_lossy(&out.stdout);
+            if stats.is_empty() {
+                println!("{}", "No system statistics available.".bright_red());
+            } else {
+                println!("{}", "System Statistics:".bright_cyan());
+                let lines: Vec<&str> = stats.lines().collect();
+                if lines.len() >= 2 {
+                    let headers = lines[0];
+                    println!("{}", headers.bright_green());
+                    
+                    // Format each data line with color indicators
+                    for line in lines.iter().skip(1) {
+                        let fields: Vec<&str> = line.split_whitespace().collect();
+                        if fields.len() >= 17 {
+                            // CPU usage indicators
+                            let cpu_idle = fields[15].parse::<f32>().unwrap_or(0.0);
+                            let cpu_usage = 100.0 - cpu_idle;
+                            let cpu_color = if cpu_usage > 80.0 { "red" } 
+                                         else if cpu_usage > 50.0 { "yellow" } 
+                                         else { "green" };
+                            
+                            let mem_free = fields[3].parse::<i32>().unwrap_or(0);
+                            
+                            println!("{}", format!("{} (CPU: {:.1}%, Free Mem: {}K)", 
+                                line, cpu_usage, mem_free).color(cpu_color));
+                        } else {
+                            println!("{}", line.bright_green());
+                        }
+                    }
+                } else {
+                    println!("{}", stats.bright_green());
+                }
+            }
+        },
         Err(e) => println!("{} {}", "Vmstat failed:".bright_red(), e),
     }
 }
 
-pub fn iostat() {
-    println!("{}", "Checking I/O stats...".bright_cyan());
+pub fn iostat(interval: &str, count: &str) {
+    println!("{}", format!("Monitoring I/O stats (interval: {}s, count: {})...", interval, count).bright_cyan());
+    println!("{}", "I/O Statistics:".bright_cyan());
+    
     let output = Command::new("iostat")
-        .output();
-
-    match output {
-        Ok(out) => println!("{}", String::from_utf8_lossy(&out.stdout).bright_green()),
-        Err(e) => println!("{} {}", "Iostat failed:".bright_red(), e),
+        .arg("-x")
+        .arg(interval)
+        .arg(count)
+        .output()
+        .expect("Failed to execute iostat");
+    
+    let output_str = String::from_utf8_lossy(&output.stdout);
+    if output_str.is_empty() {
+        println!("{}", "No I/O statistics available".bright_red());
+        return;
+    }
+    
+    // Print the header
+    println!("{}", output_str.lines().take(3).collect::<Vec<&str>>().join("\n").bright_white());
+    
+    // Parse and format the device statistics
+    for line in output_str.lines().skip(3) {
+        if line.trim().is_empty() {
+            continue;
+        }
+        
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        if parts.len() < 7 {
+            continue;
+        }
+        
+        let device = parts[0];
+        let util = parts[parts.len() - 1].parse::<f64>().unwrap_or(0.0);
+        
+        // Color code based on utilization
+        let color = if util > 80.0 {
+            "red"
+        } else if util > 50.0 {
+            "yellow"
+        } else {
+            "green"
+        };
+        
+        println!("{}", format!("{}: {:.1}%", device, util).color(color));
     }
 }
 
-pub fn mpstat() {
-    println!("{}", "Checking per-core CPU stats...".bright_cyan());
+pub fn mpstat(interval: &str, count: &str) {
+    // Set defaults if not provided
+    let interval = if interval.is_empty() { "1" } else { interval };
+    let count = if count.is_empty() { "5" } else { count };
+
+    println!("{}", format!("Monitoring CPU stats (interval: {}s, count: {})...", interval, count).bright_cyan());
     let output = Command::new("mpstat")
         .arg("-P")
         .arg("ALL")
+        .arg(interval)
+        .arg(count)
         .output();
 
     match output {
-        Ok(out) => println!("{}", String::from_utf8_lossy(&out.stdout).bright_green()),
+        Ok(out) => {
+            let stats = String::from_utf8_lossy(&out.stdout);
+            if stats.is_empty() {
+                println!("{}", "No CPU statistics available.".bright_red());
+            } else {
+                println!("{}", "CPU Statistics:".bright_cyan());
+                let lines: Vec<&str> = stats.lines().collect();
+                if lines.len() >= 2 {
+                    let headers = lines[0];
+                    println!("{}", headers.bright_green());
+                    
+                    // Format each data line with color indicators
+                    for line in lines.iter().skip(1) {
+                        let fields: Vec<&str> = line.split_whitespace().collect();
+                        if fields.len() >= 4 {
+                            // CPU usage indicators
+                            let idle = fields[3].parse::<f32>().unwrap_or(0.0);
+                            let usage = 100.0 - idle;
+                            let cpu_color = if usage > 80.0 { "red" } 
+                                         else if usage > 50.0 { "yellow" } 
+                                         else { "green" };
+                            
+                            println!("{}", format!("{} (Usage: {:.1}%)", 
+                                line, usage).color(cpu_color));
+                        } else {
+                            println!("{}", line.bright_green());
+                        }
+                    }
+                } else {
+                    println!("{}", stats.bright_green());
+                }
+            }
+        },
         Err(e) => println!("{} {}", "Mpstat failed:".bright_red(), e),
     }
 }
 
-pub fn sar() {
-    println!("{}", "Checking historical system stats...".bright_cyan());
+pub fn sar(interval: &str, count: &str) {
+    // Set defaults if not provided
+    let interval = if interval.is_empty() { "1" } else { interval };
+    let count = if count.is_empty() { "5" } else { count };
+
+    println!("{}", format!("Monitoring system activity (interval: {}s, count: {})...", interval, count).bright_cyan());
     let output = Command::new("sar")
+        .arg("-u")
+        .arg("-r")
+        .arg("-b")
+        .arg(interval)
+        .arg(count)
         .output();
 
     match output {
-        Ok(out) => println!("{}", String::from_utf8_lossy(&out.stdout).bright_green()),
+        Ok(out) => {
+            let stats = String::from_utf8_lossy(&out.stdout);
+            if stats.is_empty() {
+                println!("{}", "No system activity data available.".bright_red());
+            } else {
+                println!("{}", "System Activity Report:".bright_cyan());
+                let lines: Vec<&str> = stats.lines().collect();
+                if lines.len() >= 2 {
+                    let headers = lines[0];
+                    println!("{}", headers.bright_green());
+                    
+                    // Format each data line with color indicators
+                    for line in lines.iter().skip(1) {
+                        let fields: Vec<&str> = line.split_whitespace().collect();
+                        if fields.len() >= 4 {
+                            // CPU usage indicators
+                            let idle = fields[3].parse::<f32>().unwrap_or(0.0);
+                            let usage = 100.0 - idle;
+                            let cpu_color = if usage > 80.0 { "red" } 
+                                         else if usage > 50.0 { "yellow" } 
+                                         else { "green" };
+                            
+                            println!("{}", format!("{} (CPU: {:.1}%)", 
+                                line, usage).color(cpu_color));
+                        } else {
+                            println!("{}", line.bright_green());
+                        }
+                    }
+                } else {
+                    println!("{}", stats.bright_green());
+                }
+            }
+        },
         Err(e) => println!("{} {}", "Sar failed:".bright_red(), e),
     }
 }
@@ -240,26 +612,83 @@ pub fn df() {
         .output();
 
     match output {
-        Ok(out) => println!("{}", String::from_utf8_lossy(&out.stdout).bright_green()),
+        Ok(out) => {
+            let disk = String::from_utf8_lossy(&out.stdout);
+            if disk.is_empty() {
+                println!("{}", "No disk information available.".bright_red());
+            } else {
+                println!("{}", "Disk Usage:".bright_cyan());
+                let lines: Vec<&str> = disk.lines().collect();
+                if lines.len() >= 2 {
+                    let headers = lines[0];
+                    println!("{}", headers.bright_green());
+                    
+                    // Format each data line with color indicators
+                    for line in lines.iter().skip(1) {
+                        let fields: Vec<&str> = line.split_whitespace().collect();
+                        if fields.len() >= 5 {
+                            // Disk usage indicators
+                            let usage = fields[4].trim_end_matches('%').parse::<f32>().unwrap_or(0.0);
+                            let disk_color = if usage > 90.0 { "red" } 
+                                          else if usage > 70.0 { "yellow" } 
+                                          else { "green" };
+                            
+                            println!("{}", format!("{} (Usage: {:.1}%)", 
+                                line, usage).color(disk_color));
+                        } else {
+                            println!("{}", line.bright_green());
+                        }
+                    }
+                } else {
+                    println!("{}", disk.bright_green());
+                }
+            }
+        },
         Err(e) => println!("{} {}", "Df failed:".bright_red(), e),
     }
 }
 
 pub fn du(path: &str) {
-    println!("{}", format!("Checking folder sizes in {}...", path).bright_cyan());
+    if path.is_empty() {
+        println!("{}", "Please provide a path to analyze".bright_red());
+        return;
+    }
+
+    println!("{}", format!("Analyzing disk usage in {}...", path).bright_cyan());
     let output = Command::new("du")
-        .arg("-sh")
+        .arg("-h")
+        .arg("--max-depth=1")
         .arg(path)
-        .arg("*")
         .output();
 
     match output {
-        Ok(out) => println!("{}", String::from_utf8_lossy(&out.stdout).bright_green()),
+        Ok(out) => {
+            let usage = String::from_utf8_lossy(&out.stdout);
+            if usage.is_empty() {
+                println!("{}", "No disk usage information available.".bright_red());
+            } else {
+                println!("{}", "Directory Sizes:".bright_cyan());
+                let lines: Vec<&str> = usage.lines().collect();
+                for line in lines {
+                    let fields: Vec<&str> = line.split_whitespace().collect();
+                    if fields.len() >= 2 {
+                        let size = fields[0];
+                        let path = fields[1];
+                        println!("{} {}", size.bright_green(), path.bright_blue());
+                    }
+                }
+            }
+        },
         Err(e) => println!("{} {}", "Du failed:".bright_red(), e),
     }
 }
 
 pub fn ncdu(path: &str) {
+    if path.is_empty() {
+        println!("{}", "Please provide a path to analyze".bright_red());
+        return;
+    }
+
     println!("{}", format!("Launching interactive disk usage explorer in {}...", path).bright_cyan());
     let status = Command::new("ncdu")
         .arg(path)
@@ -274,10 +703,40 @@ pub fn ncdu(path: &str) {
 pub fn lsblk() {
     println!("{}", "Listing block devices...".bright_cyan());
     let output = Command::new("lsblk")
+        .arg("-o")
+        .arg("NAME,SIZE,TYPE,MOUNTPOINT,FSTYPE")
         .output();
 
     match output {
-        Ok(out) => println!("{}", String::from_utf8_lossy(&out.stdout).bright_green()),
+        Ok(out) => {
+            let devices = String::from_utf8_lossy(&out.stdout);
+            if devices.is_empty() {
+                println!("{}", "No block devices found.".bright_red());
+            } else {
+                println!("{}", "Block Devices:".bright_cyan());
+                let lines: Vec<&str> = devices.lines().collect();
+                if lines.len() >= 2 {
+                    let headers = lines[0];
+                    println!("{}", headers.bright_green());
+                    
+                    // Format each device line
+                    for line in lines.iter().skip(1) {
+                        let fields: Vec<&str> = line.split_whitespace().collect();
+                        if fields.len() >= 4 {
+                            let mountpoint = fields[3];
+                            let color = if mountpoint == "/" { "yellow" } 
+                                     else if !mountpoint.is_empty() { "green" } 
+                                     else { "blue" };
+                            println!("{}", line.color(color));
+                        } else {
+                            println!("{}", line.bright_green());
+                        }
+                    }
+                } else {
+                    println!("{}", devices.bright_green());
+                }
+            }
+        },
         Err(e) => println!("{} {}", "Lsblk failed:".bright_red(), e),
     }
 }
@@ -288,19 +747,51 @@ pub fn mount() {
         .output();
 
     match output {
-        Ok(out) => println!("{}", String::from_utf8_lossy(&out.stdout).bright_green()),
+        Ok(out) => {
+            let mounts = String::from_utf8_lossy(&out.stdout);
+            if mounts.is_empty() {
+                println!("{}", "No mounted filesystems found.".bright_red());
+            } else {
+                println!("{}", "Mounted Filesystems:".bright_cyan());
+                let lines: Vec<&str> = mounts.lines().collect();
+                for line in lines {
+                    let fields: Vec<&str> = line.split_whitespace().collect();
+                    if fields.len() >= 3 {
+                        let mountpoint = fields[2];
+                        let color = if mountpoint == "/" { "yellow" } 
+                                 else if mountpoint.starts_with("/") { "green" } 
+                                 else { "blue" };
+                        println!("{}", line.color(color));
+                    } else {
+                        println!("{}", line.bright_green());
+                    }
+                }
+            }
+        },
         Err(e) => println!("{} {}", "Mount failed:".bright_red(), e),
     }
 }
 
 pub fn umount(device: &str) {
+    if device.is_empty() {
+        println!("{}", "Please provide a device or mount point to unmount".bright_red());
+        return;
+    }
+
     println!("{}", format!("Unmounting {}...", device).bright_cyan());
     let output = Command::new("umount")
         .arg(device)
         .output();
 
     match output {
-        Ok(out) => println!("{}", String::from_utf8_lossy(&out.stdout).bright_green()),
+        Ok(out) => {
+            if out.status.success() {
+                println!("{}", format!("Successfully unmounted {}", device).bright_green());
+            } else {
+                println!("{}", format!("Failed to unmount {}: {}", 
+                    device, String::from_utf8_lossy(&out.stderr)).bright_red());
+            }
+        },
         Err(e) => println!("{} {}", "Umount failed:".bright_red(), e),
     }
 }
