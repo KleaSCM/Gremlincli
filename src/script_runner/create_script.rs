@@ -2,6 +2,7 @@ use std::io::{self, Write};
 use std::fs;
 use colored::*;
 use crate::script_runner::header;
+use crate::script_runner::template;
 
 #[allow(dead_code)]
 fn load_ascii(path: &str) -> String {
@@ -11,7 +12,7 @@ fn load_ascii(path: &str) -> String {
 #[allow(dead_code)]
 fn ensure_script_dirs() -> Result<(), String> {
     let base_path = "/home/klea/Documents/Scripts/";
-    let dirs = ["Python", "Rust", "Bash", "Go", "PS1"];
+    let dirs = ["Python", "Rust", "Bash", "Go", "Lua", "PS1"];
 
     for dir in dirs.iter() {
         let path = format!("{}{}", base_path, dir);
@@ -41,46 +42,37 @@ pub fn run() {
         println!("{} {}", "3.".bright_green(), "Bash Script".bright_magenta());
         println!("{} {}", "4.".bright_green(), "Go Script".bright_magenta());
         println!("{} {}", "5.".bright_green(), "Lua Script".bright_magenta());
-        println!("{} {}", "6.".bright_green(), "Back to Script Runner 🔙".bright_blue());
+        println!("{} {}", "6.".bright_green(), "PowerShell Script".bright_magenta());
+        println!("{} {}", "7.".bright_green(), "Back to Script Runner 🔙".bright_blue());
 
-        print!("\n{}", "Enter choice (1-6): ".bright_blue());
+        print!("\n{}", "Enter choice (1-7): ".bright_blue());
         io::stdout().flush().unwrap();
 
         let mut input = String::new();
         io::stdin().read_line(&mut input).unwrap();
         
         match input.trim() {
-            "1" | "2" | "3" | "4" | "5" => {
+            "1" | "2" | "3" | "4" | "5" | "6" => {
                 print!("{}", "Enter script name: ".bright_blue());
                 io::stdout().flush().unwrap();
                 let mut script_name = String::new();
                 io::stdin().read_line(&mut script_name).unwrap();
                 let script_name = script_name.trim();
 
-                let (dir, extension, template) = match input.trim() {
-                    "1" => ("Python", "py", r#"def main():
-    print("Hello, World!")
-
-if __name__ == "__main__":
-    main()"#),
-                    "2" => ("Rust", "rs", r#"fn main() {
-    println!("Hello, World!");
-}"#),
-                    "3" => ("Bash", "sh", r#"echo "Hello, World!""#),
-                    "4" => ("Go", "go", r#"package main
-
-import "fmt"
-
-func main() {
-    fmt.Println("Hello, World!")
-}"#),
-                    "5" => ("Lua", "lua", r#"print("Hello, World!")"#),
+                let (dir, extension, language) = match input.trim() {
+                    "1" => ("Python", "py", "Python"),
+                    "2" => ("Rust", "rs", "Rust"),
+                    "3" => ("Bash", "sh", "Bash"),
+                    "4" => ("Go", "go", "Go"),
+                    "5" => ("Lua", "lua", "Lua"),
+                    "6" => ("PS1", "ps1", "PS1"),
                     _ => unreachable!(),
                 };
 
                 let script_path = format!("/home/klea/Documents/Scripts/{}/{}.{}", dir, script_name, extension);
-                let header = header::generate_header(&format!("{}.{}", script_name, extension), dir);
-                let content = format!("{}{}", header, template);
+                let header = header::generate_header(&format!("{}.{}", script_name, extension), language);
+                let template = template::get_template(language).unwrap_or_default();
+                let content = format!("{}\n{}", header, template);
                 
                 fs::write(&script_path, content)
                     .map_err(|e| format!("Failed to create script: {}", e))
@@ -99,7 +91,7 @@ func main() {
                 println!("{}", "✅ Script created successfully!".bright_green());
                 println!("{} {}", "Script path:".bright_cyan(), script_path.bright_blue());
             },
-            "6" => return,
+            "7" => return,
             _ => println!("{}", "⚠️ Invalid choice. Try again.".bright_red()),
         }
     }
