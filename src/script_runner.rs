@@ -1,40 +1,49 @@
 use std::io::{self, Write};
+use std::fs;
+use colored::*;
+
+fn load_ascii(path: &str) -> String {
+    fs::read_to_string(path).unwrap_or_else(|_| "✨ [ASCII missing] ✨".to_string())
+}
 
 pub fn run() {
-    println!("👷‍♀️ Launching Script Runner!");
+    let splash_art = load_ascii("ascii/ScriptGirl.txt");
+    println!("{}", splash_art.bright_magenta());
+    println!("{}", "👷‍♀️ Launching Script Runner!".bright_purple().bold().blink());
+    
     loop {
-        println!("\nScript Runner Menu:");
-        println!("1. Run Script");
-        println!("2. List Scripts");
-        println!("3. Create Script");
-        println!("4. Back to Main Menu");
+        println!("\n{}", "Script Runner Menu:".bright_cyan());
+        println!("{} {}", "1.".bright_green(), "Create New Script 📝".bright_magenta());
+        println!("{} {}", "2.".bright_green(), "Run Script 🚀".bright_cyan());
+        println!("{} {}", "3.".bright_green(), "Build Script 🔨".bright_purple());
+        println!("{} {}", "4.".bright_green(), "Back to Main Menu 🔙".bright_blue());
 
-        print!("\nEnter your choice (1–4): ");
+        print!("\n{}", "Enter your choice (1–4): ".bright_blue());
         io::stdout().flush().unwrap();
 
         let mut input = String::new();
         io::stdin().read_line(&mut input).unwrap();
         match input.trim() {
-            "1" => run_script(),
-            "2" => list_scripts(),
-            "3" => create_script(),
-            "4" => break,
-            _ => println!("Invalid choice. Try again."),
+            "1" => create_new_project(),
+            "2" => show_templates(),
+            "3" => show_settings(),
+            "4" => return,
+            _ => println!("{}", "⚠️ Invalid choice. Try again.".bright_red()),
         }
     }
 }
 
-fn run_script() {
-    println!("Running script...");
-    // TODO: Implement script execution
+fn create_new_project() {
+    println!("{}", "Creating new Script... 📝".bright_magenta());
+    // TODO: Implement project creation
 }
 
-fn list_scripts() {
-    println!("Available scripts:");
-    // TODO: Implement script listing
+fn show_templates() {
+    println!("{}", "Available templates: 📋".bright_cyan());
+    // TODO: Implement template listing
 }
 
-fn create_script() {
-    println!("Creating new script...");
-    // TODO: Implement script creation
+fn show_settings() {
+    println!("{}", "Project settings: ⚙️".bright_purple());
+    // TODO: Implement settings management
 } 
