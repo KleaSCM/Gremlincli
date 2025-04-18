@@ -1,5 +1,6 @@
 use std::io::{self, Write};
 use std::fs;
+use std::process::Command;
 use colored::*;
 use crate::script_runner::header;
 use crate::script_runner::template;
@@ -19,6 +20,40 @@ fn ensure_script_dirs() -> Result<(), String> {
         fs::create_dir_all(&path)
             .map_err(|e| format!("Failed to create directory {}: {}", dir, e))?;
     }
+
+    Ok(())
+}
+
+fn setup_go_project(script_path: &str, script_name: &str) -> Result<(), String> {
+    // Initialize Go module
+    Command::new("go")
+        .arg("mod")
+        .arg("init")
+        .arg(script_name)
+        .current_dir(script_path)
+        .status()
+        .map_err(|e| format!("Failed to initialize Go module: {}", e))?;
+
+    // Get dependencies
+    Command::new("go")
+        .arg("mod")
+        .arg("tidy")
+        .current_dir(script_path)
+        .status()
+        .map_err(|e| format!("Failed to get Go dependencies: {}", e))?;
+
+    Ok(())
+}
+
+fn setup_rust_project(script_path: &str, script_name: &str) -> Result<(), String> {
+    // Initialize Cargo project
+    Command::new("cargo")
+        .arg("init")
+        .arg("--bin")
+        .arg(script_name)
+        .current_dir(script_path)
+        .status()
+        .map_err(|e| format!("Failed to initialize Rust project: {}", e))?;
 
     Ok(())
 }
@@ -69,18 +104,39 @@ pub fn run() {
                     _ => unreachable!(),
                 };
 
-                let script_path = format!("/home/klea/Documents/Scripts/{}/{}.{}", dir, script_name, extension);
-                let header = header::generate_header(&format!("{}.{}", script_name, extension), language);
+                let script_path = format!("/home/klea/Documents/Scripts/{}/{}", dir, script_name);
+                let script_file = format!("{}.{}", script_name, extension);
+                let full_path = format!("{}/{}", script_path, script_file);
+
+                // Create script directory
+                fs::create_dir_all(&script_path)
+                    .map_err(|e| format!("Failed to create script directory: {}", e))
+                    .unwrap_or_else(|e| println!("{} {}", "Error:".bright_red(), e));
+
+                // Setup project for Go and Rust
+                if language == "Go" {
+                    if let Err(e) = setup_go_project(&script_path, script_name) {
+                        println!("{} {}", "Error:".bright_red(), e);
+                        continue;
+                    }
+                } else if language == "Rust" {
+                    if let Err(e) = setup_rust_project(&script_path, script_name) {
+                        println!("{} {}", "Error:".bright_red(), e);
+                        continue;
+                    }
+                }
+
+                let header = header::generate_header(&script_file, language);
                 let template = template::get_template(language).unwrap_or_default();
                 let content = format!("{}\n{}", header, template);
                 
-                fs::write(&script_path, content)
+                fs::write(&full_path, content)
                     .map_err(|e| format!("Failed to create script: {}", e))
                     .and_then(|_| {
                         if dir == "Bash" {
-                            std::process::Command::new("chmod")
+                            Command::new("chmod")
                                 .arg("+x")
-                                .arg(&script_path)
+                                .arg(&full_path)
                                 .status()
                                 .map_err(|e| format!("Failed to make script executable: {}", e))?;
                         }
@@ -89,7 +145,7 @@ pub fn run() {
                     .unwrap_or_else(|e| println!("{} {}", "Error:".bright_red(), e));
 
                 println!("{}", "✅ Script created successfully!".bright_green());
-                println!("{} {}", "Script path:".bright_cyan(), script_path.bright_blue());
+                println!("{} {}", "Script path:".bright_cyan(), full_path.bright_blue());
             },
             "7" => return,
             _ => println!("{}", "⚠️ Invalid choice. Try again.".bright_red()),
