@@ -32,7 +32,7 @@ fn list_scripts(dir: &str) -> Vec<String> {
 }
 
 pub fn run() {
-    let splash_art = load_ascii("ascii/RunScriptGremlin.txt");
+    let splash_art = load_ascii("ascii/networkingGirl.txt");
     println!("{}", splash_art.bright_magenta());
     println!("\n{}", "🚀 Run Script Dashboard 🚀".bright_purple().bold().blink());
 

@@ -32,7 +32,7 @@ fn list_scripts(dir: &str) -> Vec<String> {
 }
 
 pub fn run() {
-    let splash_art = load_ascii("ascii/SearchGremlin.txt");
+    let splash_art = load_ascii("ascii/GOgirl.txt");
     println!("{}", splash_art.bright_magenta());
     println!("\n{}", "🔍 Script Search Dashboard 🔍".bright_purple().bold().blink());
     

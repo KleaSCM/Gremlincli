@@ -59,7 +59,7 @@ fn setup_rust_project(script_path: &str, script_name: &str) -> Result<(), String
 
 #[allow(dead_code)]
 pub fn run() {
-    let splash_art = load_ascii("ascii/CreateScriptGremlin.txt");
+    let splash_art = load_ascii("ascii/diskGirl.txt");
     println!("{}", splash_art.bright_magenta());
     println!("\n{}", "📝 Create New Script 📝".bright_purple().bold().blink());
     
