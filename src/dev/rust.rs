@@ -1192,10 +1192,30 @@ custom-protocol = [ "tauri/custom-protocol" ]"#;
     println!("{}", format!("Project location: {}", project_path).bright_cyan());
     println!("\n{}", "Project structure:".bright_yellow());
     display_file_structure(&project_path, "");
-    println!("\n{}", "To get started, run:".bright_yellow());
-    println!("{}", format!("cd {}", project_name).bright_cyan());
-    println!("{}", "npm install".bright_cyan());
-    println!("{}", "npm run tauri dev".bright_cyan());
+    
+    // Run npm install
+    println!("\n{}", "Installing npm dependencies...".bright_cyan());
+    match Command::new("npm")
+        .arg("install")
+        .current_dir(&project_path)
+        .status() {
+        Ok(status) if status.success() => {
+            println!("{}", "✅ npm dependencies installed successfully!".bright_green());
+            println!("\n{}", "To start development, run:".bright_yellow());
+            println!("{}", format!("cd {}", project_name).bright_cyan());
+            println!("{}", "npm run tauri dev".bright_cyan());
+        },
+        Ok(_) => {
+            println!("{}", "⚠️ npm install completed with warnings".bright_yellow());
+            println!("\n{}", "To start development, run:".bright_yellow());
+            println!("{}", format!("cd {}", project_name).bright_cyan());
+            println!("{}", "npm run tauri dev".bright_cyan());
+        },
+        Err(e) => {
+            println!("{} {}", "⚠️ Failed to install npm dependencies:".bright_red(), e);
+            println!("{}", "Please run 'npm install' manually in the project directory".bright_yellow());
+        }
+    }
 }
 
 fn template_dashboard() {
