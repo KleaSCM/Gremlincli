@@ -437,3 +437,369 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
     Ok(())
 }
+
+/// Create a Gin web framework project
+pub fn create_gin_template(project_name: &str, is_private: bool) -> Result<(), String> {
+    let base_path = "/home/klea/Documents/Dev/";
+    let project_path = format!("{}{}", base_path, project_name);
+
+    // Create basic project structure
+    project_setup::create_project(&project_path, "Gin Web", is_private)?;
+
+    // Create go.mod
+    let go_mod = format!(r#"module {}
+
+go 1.21
+
+require (
+    github.com/gin-gonic/gin v1.9.1
+    github.com/joho/godotenv v1.5.1
+)"#, project_name);
+
+    fs::write(format!("{}/go.mod", project_path), go_mod)
+        .map_err(|e| format!("Failed to create go.mod: {}", e))?;
+
+    // Create main.go
+    let main_go = r#"package main
+
+import (
+    "net/http"
+    "github.com/gin-gonic/gin"
+)
+
+func main() {
+    r := gin.Default()
+    
+    r.GET("/", func(c *gin.Context) {
+        c.JSON(http.StatusOK, gin.H{
+            "message": "Welcome to Gin!",
+        })
+    })
+
+    r.Run(":8080")
+}"#;
+
+    fs::write(format!("{}/main.go", project_path), main_go)
+        .map_err(|e| format!("Failed to create main.go: {}", e))?;
+
+    // Display project structure
+    println!("\n{}", "Project structure:".bright_cyan());
+    project_setup::display_file_structure(&project_path, "");
+
+    Ok(())
+}
+
+/// Create an Echo web framework project
+pub fn create_echo_template(project_name: &str, is_private: bool) -> Result<(), String> {
+    let base_path = "/home/klea/Documents/Dev/";
+    let project_path = format!("{}{}", base_path, project_name);
+
+    // Create basic project structure
+    project_setup::create_project(&project_path, "Echo Web", is_private)?;
+
+    // Create go.mod
+    let go_mod = format!(r#"module {}
+
+go 1.21
+
+require (
+    github.com/labstack/echo/v4 v4.11.1
+    github.com/joho/godotenv v1.5.1
+)"#, project_name);
+
+    fs::write(format!("{}/go.mod", project_path), go_mod)
+        .map_err(|e| format!("Failed to create go.mod: {}", e))?;
+
+    // Create main.go
+    let main_go = r#"package main
+
+import (
+    "net/http"
+    "github.com/labstack/echo/v4"
+)
+
+func main() {
+    e := echo.New()
+    
+    e.GET("/", func(c echo.Context) error {
+        return c.JSON(http.StatusOK, map[string]string{
+            "message": "Welcome to Echo!",
+        })
+    })
+
+    e.Start(":8080")
+}"#;
+
+    fs::write(format!("{}/main.go", project_path), main_go)
+        .map_err(|e| format!("Failed to create main.go: {}", e))?;
+
+    // Display project structure
+    println!("\n{}", "Project structure:".bright_cyan());
+    project_setup::display_file_structure(&project_path, "");
+
+    Ok(())
+}
+
+/// Create a Cobra CLI project
+pub fn create_cobra_template(project_name: &str, is_private: bool) -> Result<(), String> {
+    let base_path = "/home/klea/Documents/Dev/";
+    let project_path = format!("{}{}", base_path, project_name);
+
+    // Create basic project structure
+    project_setup::create_project(&project_path, "Cobra CLI", is_private)?;
+
+    // Create go.mod
+    let go_mod = format!(r#"module {}
+
+go 1.21
+
+require (
+    github.com/spf13/cobra v1.7.0
+    github.com/spf13/viper v1.16.0
+)"#, project_name);
+
+    fs::write(format!("{}/go.mod", project_path), go_mod)
+        .map_err(|e| format!("Failed to create go.mod: {}", e))?;
+
+    // Create main.go
+    let main_go = format!(r#"package main
+
+import (
+    "fmt"
+    "os"
+    "{}/cmd"
+)
+
+func main() {{
+    if err := cmd.Execute(); err != nil {{
+        fmt.Println(err)
+        os.Exit(1)
+    }}
+}}"#, project_name);
+
+    fs::write(format!("{}/main.go", project_path), main_go)
+        .map_err(|e| format!("Failed to create main.go: {}", e))?;
+
+    // Create cmd directory
+    let cmd_path = format!("{}/cmd", project_path);
+    fs::create_dir_all(&cmd_path)
+        .map_err(|e| format!("Failed to create cmd directory: {}", e))?;
+
+    // Create root.go
+    let root_go = r#"package cmd
+
+import (
+    "github.com/spf13/cobra"
+)
+
+var rootCmd = &cobra.Command{
+    Use:   "app",
+    Short: "A brief description of your application",
+    Long: `A longer description that spans multiple lines and likely contains
+examples and usage of using your application.`,
+}
+
+func Execute() error {
+    return rootCmd.Execute()
+}
+
+func init() {
+    rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+}"#;
+
+    fs::write(format!("{}/root.go", cmd_path), root_go)
+        .map_err(|e| format!("Failed to create root.go: {}", e))?;
+
+    // Display project structure
+    println!("\n{}", "Project structure:".bright_cyan());
+    project_setup::display_file_structure(&project_path, "");
+
+    Ok(())
+}
+
+/// Create a Qt GUI project
+pub fn create_qt_template(project_name: &str, is_private: bool) -> Result<(), String> {
+    let base_path = "/home/klea/Documents/Dev/";
+    let project_path = format!("{}{}", base_path, project_name);
+
+    // Create basic project structure
+    project_setup::create_project(&project_path, "Qt GUI", is_private)?;
+
+    // Create CMakeLists.txt
+    let cmake_lists = format!(r#"cmake_minimum_required(VERSION 3.16)
+project({})
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets)
+
+set(SOURCES
+    src/main.cpp
+    src/mainwindow.cpp
+)
+
+set(HEADERS
+    include/mainwindow.h
+)
+
+add_executable(${{PROJECT_NAME}} ${{SOURCES}} ${{HEADERS}})
+
+target_link_libraries(${{PROJECT_NAME}} PRIVATE
+    Qt6::Core
+    Qt6::Gui
+    Qt6::Widgets
+)"#, project_name);
+
+    fs::write(format!("{}/CMakeLists.txt", project_path), cmake_lists)
+        .map_err(|e| format!("Failed to create CMakeLists.txt: {}", e))?;
+
+    // Create main.cpp
+    let main_cpp = r#"#include <QApplication>
+#include "mainwindow.h"
+
+int main(int argc, char *argv[]) {
+    QApplication app(argc, argv);
+    MainWindow window;
+    window.show();
+    return app.exec();
+}"#;
+
+    fs::write(format!("{}/src/main.cpp", project_path), main_cpp)
+        .map_err(|e| format!("Failed to create main.cpp: {}", e))?;
+
+    // Create mainwindow.h
+    let mainwindow_h = r#"#ifndef MAINWINDOW_H
+#define MAINWINDOW_H
+
+#include <QMainWindow>
+
+class MainWindow : public QMainWindow {
+    Q_OBJECT
+
+public:
+    MainWindow(QWidget *parent = nullptr);
+    ~MainWindow();
+};
+
+#endif // MAINWINDOW_H"#;
+
+    fs::write(format!("{}/include/mainwindow.h", project_path), mainwindow_h)
+        .map_err(|e| format!("Failed to create mainwindow.h: {}", e))?;
+
+    // Create mainwindow.cpp
+    let mainwindow_cpp = r#"#include "mainwindow.h"
+
+MainWindow::MainWindow(QWidget *parent)
+    : QMainWindow(parent) {
+    setWindowTitle("Qt Application");
+    resize(800, 600);
+}
+
+MainWindow::~MainWindow() {}"#;
+
+    fs::write(format!("{}/src/mainwindow.cpp", project_path), mainwindow_cpp)
+        .map_err(|e| format!("Failed to create mainwindow.cpp: {}", e))?;
+
+    // Display project structure
+    println!("\n{}", "Project structure:".bright_cyan());
+    project_setup::display_file_structure(&project_path, "");
+
+    Ok(())
+}
+
+/// Create an SFML game project
+pub fn create_sfml_template(project_name: &str, is_private: bool) -> Result<(), String> {
+    let base_path = "/home/klea/Documents/Dev/";
+    let project_path = format!("{}{}", base_path, project_name);
+
+    // Create basic project structure
+    project_setup::create_project(&project_path, "SFML Game", is_private)?;
+
+    // Create CMakeLists.txt
+    let cmake_lists = format!(r#"cmake_minimum_required(VERSION 3.16)
+project({})
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+find_package(SFML 2.5 COMPONENTS graphics window system REQUIRED)
+
+add_executable(${{PROJECT_NAME}} src/main.cpp)
+
+target_link_libraries(${{PROJECT_NAME}} PRIVATE
+    sfml-graphics
+    sfml-window
+    sfml-system
+)"#, project_name);
+
+    fs::write(format!("{}/CMakeLists.txt", project_path), cmake_lists)
+        .map_err(|e| format!("Failed to create CMakeLists.txt: {}", e))?;
+
+    // Create main.cpp
+    let main_cpp = r#"#include <SFML/Graphics.hpp>
+
+int main() {
+    sf::RenderWindow window(sf::VideoMode(800, 600), "SFML Game");
+    
+    while (window.isOpen()) {
+        sf::Event event;
+        while (window.pollEvent(event)) {
+            if (event.type == sf::Event::Closed)
+                window.close();
+        }
+
+        window.clear();
+        window.display();
+    }
+
+    return 0;
+}"#;
+
+    fs::write(format!("{}/src/main.cpp", project_path), main_cpp)
+        .map_err(|e| format!("Failed to create main.cpp: {}", e))?;
+
+    // Display project structure
+    println!("\n{}", "Project structure:".bright_cyan());
+    project_setup::display_file_structure(&project_path, "");
+
+    Ok(())
+}
+
+/// Create a CMake project
+pub fn create_cmake_template(project_name: &str, is_private: bool) -> Result<(), String> {
+    let base_path = "/home/klea/Documents/Dev/";
+    let project_path = format!("{}{}", base_path, project_name);
+
+    // Create basic project structure
+    project_setup::create_project(&project_path, "CMake", is_private)?;
+
+    // Create CMakeLists.txt
+    let cmake_lists = format!(r#"cmake_minimum_required(VERSION 3.16)
+project({})
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+add_executable(${{PROJECT_NAME}} src/main.cpp)"#, project_name);
+
+    fs::write(format!("{}/CMakeLists.txt", project_path), cmake_lists)
+        .map_err(|e| format!("Failed to create CMakeLists.txt: {}", e))?;
+
+    // Create main.cpp
+    let main_cpp = r#"#include <iostream>
+
+int main() {
+    std::cout << "Hello, CMake!" << std::endl;
+    return 0;
+}"#;
+
+    fs::write(format!("{}/src/main.cpp", project_path), main_cpp)
+        .map_err(|e| format!("Failed to create main.cpp: {}", e))?;
+
+    // Display project structure
+    println!("\n{}", "Project structure:".bright_cyan());
+    project_setup::display_file_structure(&project_path, "");
+
+    Ok(())
+}

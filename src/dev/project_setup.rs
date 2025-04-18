@@ -211,3 +211,100 @@ edition = "2021"
 
     Ok(())
 }
+
+/// Create a new Go project
+pub fn create_go_project(project_name: &str, with_github: bool, is_private: bool) -> Result<(), String> {
+    let base_path = "/home/klea/Documents/Dev/";
+    let project_path = format!("{}{}", base_path, project_name);
+
+    // Create basic project structure
+    create_project(&project_path, "Go", is_private)?;
+
+    // Create go.mod
+    let go_mod = format!(r#"module {}
+
+go 1.21"#, project_name);
+
+    fs::write(format!("{}/go.mod", project_path), go_mod)
+        .map_err(|e| format!("Failed to create go.mod: {}", e))?;
+
+    // Create main.go
+    let main_go = r#"package main
+
+import "fmt"
+
+func main() {
+    fmt.Println("Hello, World!")
+}"#;
+
+    fs::write(format!("{}/main.go", project_path), main_go)
+        .map_err(|e| format!("Failed to create main.go: {}", e))?;
+
+    if with_github {
+        let github = GitHubCli::new();
+        
+        github.install()
+            .map_err(|e| format!("GitHub CLI installation failed: {}", e))?;
+        
+        github.authenticate()
+            .map_err(|e| format!("GitHub authentication failed: {}", e))?;
+
+        github.create_repository(&project_path, is_private)
+            .map_err(|e| format!("Repository creation failed: {}", e))?;
+    }
+
+    // Display project structure
+    println!("\n{}", "Project structure:".bright_cyan());
+    display_file_structure(&project_path, "");
+
+    Ok(())
+}
+
+/// Create a new C++ project
+pub fn create_cpp_project(project_name: &str, with_github: bool, is_private: bool) -> Result<(), String> {
+    let base_path = "/home/klea/Documents/Dev/";
+    let project_path = format!("{}{}", base_path, project_name);
+
+    // Create basic project structure
+    create_project(&project_path, "C++", is_private)?;
+
+    // Create src directory
+    let src_path = format!("{}/src", project_path);
+    fs::create_dir_all(&src_path)
+        .map_err(|e| format!("Failed to create src directory: {}", e))?;
+
+    // Create include directory
+    let include_path = format!("{}/include", project_path);
+    fs::create_dir_all(&include_path)
+        .map_err(|e| format!("Failed to create include directory: {}", e))?;
+
+    // Create main.cpp
+    let main_cpp = r#"#include <iostream>
+
+int main() {
+    std::cout << "Hello, World!" << std::endl;
+    return 0;
+}"#;
+
+    fs::write(format!("{}/src/main.cpp", project_path), main_cpp)
+        .map_err(|e| format!("Failed to create main.cpp: {}", e))?;
+
+    if with_github {
+        let github = GitHubCli::new();
+        
+        github.install()
+            .map_err(|e| format!("GitHub CLI installation failed: {}", e))?;
+        
+        github.authenticate()
+            .map_err(|e| format!("GitHub authentication failed: {}", e))?;
+
+        github.create_repository(&project_path, is_private)
+            .map_err(|e| format!("Repository creation failed: {}", e))?;
+    }
+
+    // Display project structure
+    println!("\n{}", "Project structure:".bright_cyan());
+    display_file_structure(&project_path, "");
+
+    Ok(())
+}
