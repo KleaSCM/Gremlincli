@@ -3,6 +3,7 @@ use std::fs;
 use colored::*;
 
 use crate::sys_admin::command_matcher;
+use crate::sys_admin::command_types::CommandCategory;
 
 fn load_ascii(path: &str) -> String {
     fs::read_to_string(path).unwrap_or_else(|_| "✨ [ASCII missing] ✨".to_string())
@@ -15,7 +16,7 @@ pub fn run() {
     
     loop {
         println!("\n{}", "Networking Commands:".bright_cyan());
-        command_matcher::show_commands_by_category("Networking Ninja Tools");
+        command_matcher::show_commands_by_category(CommandCategory::Networking);
         println!("\n{} {}", "1.".bright_green(), "Back to System Admin Dashboard 🔙".bright_blue());
         println!("{} {}", "2.".bright_green(), "Back to Gremlin Dashboard 🏠".bright_magenta());
 

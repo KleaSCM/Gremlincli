@@ -1,5 +1,6 @@
 pub mod command_logic;
 pub mod command_matcher;
+pub mod command_types;
 pub mod command_names;
 pub mod command_categories;
 pub mod networking;

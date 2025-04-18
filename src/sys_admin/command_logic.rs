@@ -530,16 +530,14 @@ pub fn clamscan(path: &str) {
     }
 }
 
-pub fn fail2ban_status() {
-    println!("{}", "Checking fail2ban status...".bright_cyan());
-    let output = Command::new("fail2ban-client")
+pub fn fail2ban() {
+    println!("{}", "🔒 Checking fail2ban status...".bright_cyan());
+    let output = std::process::Command::new("sudo")
+        .arg("fail2ban-client")
         .arg("status")
-        .output();
-
-    match output {
-        Ok(out) => println!("{}", String::from_utf8_lossy(&out.stdout).bright_green()),
-        Err(e) => println!("{} {}", "Fail2ban status check failed:".bright_red(), e),
-    }
+        .output()
+        .expect("Failed to execute fail2ban-client");
+    println!("{}", String::from_utf8_lossy(&output.stdout));
 }
 
 pub fn gpg_encrypt(file: &str, recipient: &str) {
