@@ -12,6 +12,7 @@ dependencies = [
  "console",
  "dialoguer",
  "lazy_static",
+ "thiserror",
 ]
 
 [[package]]

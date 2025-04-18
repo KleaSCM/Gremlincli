@@ -8,6 +8,16 @@ fn load_ascii(path: &str) -> String {
     fs::read_to_string(path).unwrap_or_else(|_| "✨ [ASCII missing] ✨".to_string())
 }
 
+fn load_template_ascii(template: &str) -> String {
+    match template {
+        "standard" => load_ascii("ascii/rustGirl.txt"),
+        "iced" => load_ascii("ascii/icedGirl.txt"),
+        "ratatui" => load_ascii("ascii/ratatuiGirl.txt"),
+        "tauri" => load_ascii("ascii/tauriGirl.txt"),
+        _ => load_ascii("ascii/rustGirl.txt"),
+    }
+}
+
 fn initialize_git(project_path: &str, is_private: bool) -> Result<(), String> {
     // Initialize git repository
     Command::new("git")
@@ -33,12 +43,12 @@ fn initialize_git(project_path: &str, is_private: bool) -> Result<(), String> {
     if !is_private {
         let github = GitHubCli::new();
         
-        if !github.install() {
+        if github.install().is_err() {
             println!("{}", "Repository created locally but not pushed to GitHub.".bright_yellow());
             return Ok(());
         }
 
-        if !github.authenticate() {
+        if github.authenticate().is_err() {
             println!("{}", "Repository created locally but not pushed to GitHub.".bright_yellow());
             return Ok(());
         }
@@ -393,7 +403,60 @@ fn create_rust_project(project_name: &str, template: &str, with_git: bool) {
     let base_path = "/home/klea/Documents/Dev";
     let project_path = format!("{}/{}", base_path, project_name);
     
-    println!("{}", format!("Creating Rust project '{}'...", project_name).bright_cyan());
+    println!("{}", load_template_ascii(template).bright_magenta());
+    println!("{}", format!("Creating {} project '{}'...", template, project_name).bright_cyan());
+    
+    // Create project directory
+    if let Err(e) = std::fs::create_dir_all(&project_path) {
+        println!("{} {}", "Failed to create project directory:".bright_red(), e);
+        return;
+    }
+
+    // Ask if user wants VS Code configuration
+    print!("{}", "Add VS Code configuration? (y/n): ".bright_blue());
+    io::stdout().flush().unwrap();
+    let mut input = String::new();
+    io::stdin().read_line(&mut input).unwrap();
+    let with_vscode = input.trim().to_lowercase() == "y";
+
+    if with_vscode {
+        // Create .vscode directory
+        let vscode_path = format!("{}/.vscode", project_path);
+        if let Err(e) = std::fs::create_dir_all(&vscode_path) {
+            println!("{} {}", "Failed to create .vscode directory:".bright_red(), e);
+        } else {
+            // Create rust-analyzer.json
+            let rust_analyzer = r#"{
+    "rust-analyzer.checkOnSave.command": "clippy",
+    "rust-analyzer.cargo.features": "all",
+    "rust-analyzer.procMacro.enable": true
+}"#;
+            if let Err(e) = std::fs::write(format!("{}/rust-analyzer.json", vscode_path), rust_analyzer) {
+                println!("{} {}", "Failed to create rust-analyzer.json:".bright_red(), e);
+            }
+
+            // Create devcontainer.json
+            let devcontainer = r#"{
+    "name": "Rust Development",
+    "image": "mcr.microsoft.com/devcontainers/rust:latest",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "rust-lang.rust-analyzer",
+                "serayuzgur.crates",
+                "tamasfe.even-better-toml"
+            ]
+        }
+    },
+    "features": {
+        "ghcr.io/devcontainers/features/github-cli:1": {}
+    }
+}"#;
+            if let Err(e) = std::fs::write(format!("{}/devcontainer.json", vscode_path), devcontainer) {
+                println!("{} {}", "Failed to create devcontainer.json:".bright_red(), e);
+            }
+        }
+    }
     
     // Create project directory
     match Command::new("mkdir")
