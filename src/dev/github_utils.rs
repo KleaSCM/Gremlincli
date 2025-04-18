@@ -27,6 +27,8 @@ pub struct GitHubCli {
     is_installed: bool,
     is_authenticated: bool,
     username: Option<String>,
+    use_ssh: bool,
+    interactive: bool,
 }
 
 impl GitHubCli {
@@ -42,7 +44,21 @@ impl GitHubCli {
             is_installed,
             is_authenticated,
             username,
+            use_ssh: Self::check_ssh_key(),
+            interactive: true,
         }
+    }
+
+    #[allow(dead_code)]
+    pub fn with_ssh(mut self, use_ssh: bool) -> Self {
+        self.use_ssh = use_ssh;
+        self
+    }
+
+    #[allow(dead_code)]
+    pub fn with_interactive(mut self, interactive: bool) -> Self {
+        self.interactive = interactive;
+        self
     }
 
     fn check_installation() -> bool {
@@ -76,6 +92,28 @@ impl GitHubCli {
             }
         }
         (false, None)
+    }
+
+    fn check_ssh_key() -> bool {
+        Command::new("ssh")
+            .args(&["-T", "git@github.com"])
+            .output()
+            .map(|output| output.status.success())
+            .unwrap_or(false)
+    }
+
+    fn check_repo_exists(&self, repo_name: &str) -> Result<bool, GitHubError> {
+        let username = self.username.as_deref()
+            .ok_or(GitHubError::UsernameError)?;
+
+        let check_repo = Command::new("gh")
+            .args(&["api", &format!("/repos/{}/{}", username, repo_name)])
+            .output();
+
+        match check_repo {
+            Ok(output) => Ok(output.status.success()),
+            Err(_) => Ok(false)
+        }
     }
 
     #[allow(dead_code)]
@@ -178,19 +216,25 @@ impl GitHubCli {
             .ok_or_else(|| GitHubError::InvalidRepoName("Invalid repository name".to_string()))?;
 
         // Check if repository already exists
-        let check_repo = Command::new("gh")
-            .args(&["repo", "view", repo_name])
-            .output();
-
-        if let Ok(output) = check_repo {
-            if output.status.success() {
-                return Err(GitHubError::RepositoryExists(repo_name.to_string()));
-            }
+        if self.check_repo_exists(repo_name)? {
+            return Err(GitHubError::RepositoryExists(repo_name.to_string()));
         }
 
         // Create GitHub repository
+        let mut create_args = vec!["repo", "create", repo_name];
+        if is_private {
+            create_args.push("--private");
+        } else {
+            create_args.push("--public");
+        }
+        if self.interactive {
+            create_args.push("--clone");
+            create_args.push("--source=.");
+            create_args.push("--push");
+        }
+
         let create_repo = Command::new("gh")
-            .args(&["repo", "create", repo_name, if is_private { "--private" } else { "--public" }])
+            .args(&create_args)
             .current_dir(project_path)
             .status()
             .map_err(|e| GitHubError::CreateRepoError(e.to_string()))?;
@@ -222,7 +266,7 @@ impl GitHubCli {
 
         // Add remote and push
         self.add_remote(project_path, repo_name)?;
-        self.push_to_remote(project_path)?;
+        self.push_to_remote(project_path, "main")?;
 
         let username = self.username.as_deref()
             .ok_or(GitHubError::UsernameError)?;
@@ -238,7 +282,11 @@ impl GitHubCli {
         let username = self.username.as_deref()
             .ok_or(GitHubError::UsernameError)?;
         
-        let remote_url = format!("git@github.com:{}/{}.git", username, repo_name);
+        let remote_url = if self.use_ssh {
+            format!("git@github.com:{}/{}.git", username, repo_name)
+        } else {
+            format!("https://github.com/{}/{}.git", username, repo_name)
+        };
         
         Command::new("git")
             .args(&["remote", "add", "origin", &remote_url])
@@ -249,9 +297,9 @@ impl GitHubCli {
         Ok(())
     }
 
-    fn push_to_remote(&self, project_path: &str) -> Result<(), GitHubError> {
+    pub fn push_to_remote(&self, project_path: &str, branch: &str) -> Result<(), GitHubError> {
         Command::new("git")
-            .args(&["push", "-u", "origin", "main"])
+            .args(&["push", "-u", "origin", branch])
             .current_dir(project_path)
             .status()
             .map_err(|e| GitHubError::PushError(e.to_string()))?;
