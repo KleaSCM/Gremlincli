@@ -180,12 +180,11 @@ impl GitHubCli {
         }
 
         println!("{}", "Let's authenticate with GitHub...".bright_cyan());
-        println!("{}", "Please follow the prompts to authenticate.".bright_cyan());
-        println!("{}", "You'll need to create a Personal Access Token (PAT) with 'repo' and 'workflow' scopes.".bright_yellow());
-        println!("{}", "Visit https://github.com/settings/tokens to create one if needed.".bright_yellow());
+        println!("{}", "A browser window will open for authentication.".bright_cyan());
+        println!("{}", "Please follow the prompts to complete the authentication.".bright_cyan());
         
         let auth_status = Command::new("gh")
-            .args(&["auth", "login", "--with-token"])
+            .args(&["auth", "login", "--web"])
             .status();
             
         match auth_status {
@@ -194,7 +193,7 @@ impl GitHubCli {
                 Ok(())
             },
             _ => {
-                println!("{}", "⚠️ GitHub authentication failed. Please run 'gh auth login' manually.".bright_red());
+                println!("{}", "⚠️ GitHub authentication failed. Please try again.".bright_red());
                 Err(GitHubError::NotAuthenticated)
             }
         }
