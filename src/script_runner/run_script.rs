@@ -1,6 +1,7 @@
 use std::io::{self, Write};
 use std::fs;
 use std::process::Command;
+use std::path::Path;
 use colored::*;
 
 fn load_ascii(path: &str) -> String {
@@ -9,21 +10,31 @@ fn load_ascii(path: &str) -> String {
 
 fn list_scripts(dir: &str) -> Vec<String> {
     let path = format!("/home/klea/Documents/Scripts/{}", dir);
-    fs::read_dir(path)
-        .map(|entries| {
-            entries
-                .filter_map(|entry| entry.ok())
-                .filter(|entry| entry.path().is_file())
-                .map(|entry| entry.file_name().to_string_lossy().into_owned())
-                .collect()
-        })
-        .unwrap_or_default()
+    let mut scripts = Vec::new();
+    
+    fn walk_dir(path: &Path, scripts: &mut Vec<String>) {
+        if let Ok(entries) = fs::read_dir(path) {
+            for entry in entries.filter_map(|e| e.ok()) {
+                let path = entry.path();
+                if path.is_file() {
+                    if let Some(name) = path.file_name() {
+                        scripts.push(name.to_string_lossy().into_owned());
+                    }
+                } else if path.is_dir() {
+                    walk_dir(&path, scripts);
+                }
+            }
+        }
+    }
+    
+    walk_dir(Path::new(&path), &mut scripts);
+    scripts
 }
 
 pub fn run() {
     let splash_art = load_ascii("ascii/RunScriptGremlin.txt");
     println!("{}", splash_art.bright_magenta());
-    println!("\n{}", "🚀 Run Script 🚀".bright_purple().bold().blink());
+    println!("\n{}", "🚀 Run Script Dashboard 🚀".bright_purple().bold().blink());
 
     loop {
         println!("\n{}", "Script Types:".bright_cyan());
@@ -33,9 +44,9 @@ pub fn run() {
         println!("{} {}", "4.".bright_green(), "Go Scripts".bright_magenta());
         println!("{} {}", "5.".bright_green(), "Lua Scripts".bright_magenta());
         println!("{} {}", "6.".bright_green(), "PowerShell Scripts".bright_magenta());
-        println!("{} {}", "7.".bright_green(), "Back to Script Runner 🔙".bright_blue());
+        println!("{} {}", "0.".bright_green(), "Back to Script Runner 🔙".bright_blue());
 
-        print!("\n{}", "Enter choice (1-7): ".bright_blue());
+        print!("\n{}", "Enter choice (0-6): ".bright_blue());
         io::stdout().flush().unwrap();
 
         let mut input = String::new();
@@ -64,12 +75,15 @@ pub fn run() {
                     println!("{} {}", format!("{}.", i + 1).bright_green(), script.bright_magenta());
                 }
 
-                print!("\n{}", "Enter script number to run: ".bright_blue());
+                print!("\n{}", "Enter script number to run (or 0 to go back): ".bright_blue());
                 io::stdout().flush().unwrap();
                 let mut script_num = String::new();
                 io::stdin().read_line(&mut script_num).unwrap();
                 
                 if let Ok(num) = script_num.trim().parse::<usize>() {
+                    if num == 0 {
+                        continue;
+                    }
                     if num > 0 && num <= scripts.len() {
                         let script_path = format!("/home/klea/Documents/Scripts/{}/{}", dir, scripts[num - 1]);
                         
@@ -100,7 +114,7 @@ pub fn run() {
                     println!("{}", "⚠️ Please enter a valid number.".bright_red());
                 }
             },
-            "7" => return,
+            "0" => return,
             _ => println!("{}", "⚠️ Invalid choice. Try again.".bright_red()),
         }
     }

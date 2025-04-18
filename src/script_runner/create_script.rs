@@ -3,7 +3,6 @@ use std::fs;
 use std::process::Command;
 use colored::*;
 use crate::script_runner::header;
-use crate::script_runner::template;
 
 #[allow(dead_code)]
 fn load_ascii(path: &str) -> String {
@@ -104,31 +103,28 @@ pub fn run() {
                     _ => unreachable!(),
                 };
 
-                let script_path = format!("/home/klea/Documents/Scripts/{}/{}", dir, script_name);
-                let script_file = format!("{}.{}", script_name, extension);
-                let full_path = format!("{}/{}", script_path, script_file);
-
-                // Create script directory
-                fs::create_dir_all(&script_path)
-                    .map_err(|e| format!("Failed to create script directory: {}", e))
-                    .unwrap_or_else(|e| println!("{} {}", "Error:".bright_red(), e));
+                let script_file = if language == "Go" {
+                    "main.go".to_string()
+                } else {
+                    format!("{}.{}", script_name, extension)
+                };
+                let full_path = format!("/home/klea/Documents/Scripts/{}/{}", dir, script_file);
 
                 // Setup project for Go and Rust
                 if language == "Go" {
-                    if let Err(e) = setup_go_project(&script_path, script_name) {
+                    if let Err(e) = setup_go_project(&format!("/home/klea/Documents/Scripts/{}", dir), script_name) {
                         println!("{} {}", "Error:".bright_red(), e);
                         continue;
                     }
                 } else if language == "Rust" {
-                    if let Err(e) = setup_rust_project(&script_path, script_name) {
+                    if let Err(e) = setup_rust_project(&format!("/home/klea/Documents/Scripts/{}", dir), script_name) {
                         println!("{} {}", "Error:".bright_red(), e);
                         continue;
                     }
                 }
 
                 let header = header::generate_header(&script_file, language);
-                let template = template::get_template(language).unwrap_or_default();
-                let content = format!("{}\n{}", header, template);
+                let content = format!("{}\n", header);
                 
                 fs::write(&full_path, content)
                     .map_err(|e| format!("Failed to create script: {}", e))
